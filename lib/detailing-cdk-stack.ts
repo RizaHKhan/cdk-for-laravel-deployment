@@ -89,7 +89,7 @@ export class DetailingCdkStack extends Stack {
     const vpc = new Vpc(this, "VPC", {
       vpcName: "BarrhavenDetailingVPC",
       ipAddresses: IpAddresses.cidr("10.0.0.0/16"),
-      maxAzs: 1,
+      maxAzs: 2,
       natGateways: 1,
       subnetConfiguration: [
         {
@@ -201,11 +201,11 @@ export class DetailingCdkStack extends Stack {
     );
 
     // WARN: Is this needed?
-    applicationLoadBalancer.addListener("BarrhavenDetailingListener", {
-      port: 80,
-      open: true,
-      defaultTargetGroups: [targetGroup],
-    });
+    // applicationLoadBalancer.addListener("BarrhavenDetailingListener", {
+    //   port: 80,
+    //   open: true,
+    //   defaultTargetGroups: [targetGroup],
+    // });
 
     const httpsListener = applicationLoadBalancer.addListener("HTTPSListener", {
       port: 443,
@@ -266,7 +266,7 @@ export class DetailingCdkStack extends Stack {
               owner: "RizaHKhan",
               repo: "detailing",
               branch: "master",
-              oauthToken: SecretValue.secretsManager("github-token"),
+              oauthToken: SecretValue.secretsManager("barrhaven-detailing"),
               output: sourceArtifact,
             }),
           ],
