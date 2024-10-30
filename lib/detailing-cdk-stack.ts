@@ -7,6 +7,10 @@ import {
 } from "aws-cdk-lib";
 import { AutoScalingGroup, Signals } from "aws-cdk-lib/aws-autoscaling";
 import {
+  Certificate,
+  CertificateValidation,
+} from "aws-cdk-lib/aws-certificatemanager";
+import {
   BuildSpec,
   LinuxBuildImage,
   PipelineProject,
@@ -38,6 +42,11 @@ import {
   Vpc,
 } from "aws-cdk-lib/aws-ec2";
 import {
+  ApplicationLoadBalancer,
+  ApplicationTargetGroup,
+  TargetType,
+} from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import {
   CompositePrincipal,
   ManagedPolicy,
   PolicyDocument,
@@ -45,16 +54,40 @@ import {
   Role,
   ServicePrincipal,
 } from "aws-cdk-lib/aws-iam";
+import { ARecord, HostedZone, RecordTarget } from "aws-cdk-lib/aws-route53";
+import { LoadBalancerTarget } from "aws-cdk-lib/aws-route53-targets";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
 export class DetailingCdkStack extends Stack {
+  private domain: string;
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
+    this.domain = scope.node.getContext("domain");
+
+    const hostedZone = new HostedZone(this, "BarrhavenDetailingHostedZone", {
+      zoneName: this.domain,
+    });
+
+    const certificate = new Certificate(this, "BarrhavenDetailingCertificate", {
+      domainName: this.domain,
+      subjectAlternativeNames: [`*.${this.domain}`],
+      validation: CertificateValidation.fromDns(hostedZone),
+    });
+
+    // EMAIL
+    // const ses = new CfnEmailIdentity(this, "BarrhavenDetailingEmailIdentity", {
+    //   emailIdentity: "khanriza@gmail.com",
+    // });
+    //
+    // const sesUser = new User(this, "BarrhavenDetailingSESUser", {
+    //   userName: "barrhaven-detailing",
+    // });
+
     // VPC
     const vpc = new Vpc(this, "VPC", {
-      vpcName: "detailing-vpc",
+      vpcName: "BarrhavenDetailingVPC",
       ipAddresses: IpAddresses.cidr("10.0.0.0/16"),
       maxAzs: 1,
       natGateways: 1,
@@ -68,8 +101,8 @@ export class DetailingCdkStack extends Stack {
     });
 
     // Security Group
-    const securityGroup = new SecurityGroup(this, "SecurityGroup", {
-      securityGroupName: "detailing-sg",
+    const securityGroup = new SecurityGroup(this, "BarrhavenDetailingSecurityGroup", {
+      securityGroupName: "BarrhavenDetailingSecurityGroup",
       vpc,
       allowAllOutbound: true,
     });
@@ -91,9 +124,9 @@ export class DetailingCdkStack extends Stack {
     );
 
     // InstanceTemplate
-    const autoScalingGroup = new AutoScalingGroup(this, "AutoScalingGroup", {
+    const autoScalingGroup = new AutoScalingGroup(this, "BarrhavenDetailingAutoScalingGroup", {
       vpc,
-      launchTemplate: new LaunchTemplate(this, "LaunchTemplate", {
+      launchTemplate: new LaunchTemplate(this, "BarrhavenDetailingLaunchTemplate", {
         instanceType: new InstanceType("t2.micro"),
         machineImage: new AmazonLinuxImage({
           generation: AmazonLinuxGeneration.AMAZON_LINUX_2023,
@@ -106,6 +139,16 @@ export class DetailingCdkStack extends Stack {
               "AmazonSSMManagedInstanceCore",
             ),
           ],
+          // inlinePolicies: {
+          //   ses: new PolicyDocument({
+          //     statements: [
+          //       new PolicyStatement({
+          //         actions: ["ses:SendEmail", "ses:SendRawEmail"],
+          //         resources: ["*"],
+          //       }),
+          //     ],
+          //   }),
+          // },
         }),
         keyPair: new KeyPair(this, "DetailingKeyPair", {
           keyPairName: "DetailingKeyPair",
@@ -129,6 +172,65 @@ export class DetailingCdkStack extends Stack {
         minSuccessPercentage: 80,
         timeout: Duration.minutes(5),
       }),
+    });
+
+    // Load balancer
+    const applicationLoadBalancer = new ApplicationLoadBalancer(
+      this,
+      "BarrhaveDetailingALB",
+      {
+        vpc,
+        internetFacing: true,
+        securityGroup,
+      },
+    );
+
+    const targetGroup = new ApplicationTargetGroup(
+      this,
+      "BarrhavenDetailingTargetGroup",
+      {
+        vpc,
+        targetType: TargetType.INSTANCE,
+        port: 80,
+        targets: [autoScalingGroup],
+        healthCheck: {
+          path: "/",
+          interval: Duration.minutes(1),
+        },
+      },
+    );
+
+    // WARN: Is this needed?
+    applicationLoadBalancer.addListener("BarrhavenDetailingListener", {
+      port: 80,
+      open: true,
+      defaultTargetGroups: [targetGroup],
+    });
+
+    const httpsListener = applicationLoadBalancer.addListener("HTTPSListener", {
+      port: 443,
+      certificates: [certificate], // Your SSL certificate from ACM
+      open: true,
+    });
+
+    httpsListener.addTargetGroups("BarrhavenDetailingTargetGroup", {
+      targetGroups: [targetGroup],
+    });
+
+    new ARecord(this, "ARecord", {
+      zone: hostedZone,
+      target: RecordTarget.fromAlias(
+        new LoadBalancerTarget(applicationLoadBalancer),
+      ),
+      recordName: `www.${this.domain}`,
+    });
+
+    new ARecord(this, "RootARecord", {
+      zone: hostedZone,
+      target: RecordTarget.fromAlias(
+        new LoadBalancerTarget(applicationLoadBalancer),
+      ),
+      recordName: this.domain, // root domain
     });
 
     const sourceArtifact = new Artifact("DetailingSourceArtifact");
