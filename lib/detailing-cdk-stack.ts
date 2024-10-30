@@ -127,7 +127,7 @@ export class DetailingCdkStack extends Stack {
     const autoScalingGroup = new AutoScalingGroup(this, "BarrhavenDetailingAutoScalingGroup", {
       vpc,
       launchTemplate: new LaunchTemplate(this, "BarrhavenDetailingLaunchTemplate", {
-        instanceType: new InstanceType("t2.micro"),
+        instanceType: new InstanceType("t3.micro"),
         machineImage: new AmazonLinuxImage({
           generation: AmazonLinuxGeneration.AMAZON_LINUX_2023,
         }),
