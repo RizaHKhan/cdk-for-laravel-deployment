@@ -90,7 +90,7 @@ export class DetailingCdkStack extends Stack {
       vpcName: "BarrhavenDetailingVPC",
       ipAddresses: IpAddresses.cidr("10.0.0.0/16"),
       maxAzs: 2,
-      natGateways: 1,
+      natGateways: 0,
       subnetConfiguration: [
         {
           cidrMask: 24,
