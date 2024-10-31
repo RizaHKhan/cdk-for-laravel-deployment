@@ -158,11 +158,11 @@ export class DetailingCdkStack extends Stack {
       init: CloudFormationInit.fromElements(
         InitPackage.yum("nginx"),
         InitCommand.shellCommand(
-          "sudo yum install php php-fpm php-xml php-mbstring php-zip php-bcmath php-tokenizer ruby wget sqlite -y",
+          "sudo yum install php php-fpm php-xml php-mbstring php-zip php-bcmath php-tokenizer ruby wget sqlite apache2-utils -y",
         ),
         InitFile.fromAsset(
-          "/etc/nginx/conf.d/laravel.conf", // Destination
-          "cfninit/laravel.conf", // Where the file is located
+          "/etc/nginx/conf.d/barrhavendetailing.conf", // Destination
+          "cfninit/barrhavendetailing.conf", // Where the file is located
         ),
         InitService.enable("nginx", {
           serviceRestartHandle: new InitServiceRestartHandle(),
