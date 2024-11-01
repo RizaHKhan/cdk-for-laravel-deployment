@@ -73,12 +73,9 @@ export default function computeStack(
       init: CloudFormationInit.fromElements(
         InitPackage.yum("nginx"),
         InitCommand.shellCommand(
-          "sudo yum install php php-fpm php-xml php-mbstring php-zip php-bcmath php-tokenizer ruby wget sqlite apache2-utils -y",
+          "sudo yum install php php-fpm php-xml php-mbstring php-zip php-bcmath php-tokenizer ruby wget sqlite httpd-tools -y",
         ),
-        InitFile.fromAsset(
-          "/etc/nginx/.htpasswd",
-          "cfninit/.htpasswd",
-        ),
+        InitFile.fromAsset("/etc/nginx/.htpasswd", "cfninit/.htpasswd"),
         InitFile.fromAsset(
           "/etc/nginx/conf.d/barrhavendetailing.conf", // Destination
           "cfninit/barrhavendetailing.conf", // Where the file is located
@@ -89,7 +86,7 @@ export default function computeStack(
       ),
       signals: Signals.waitForCount(1, {
         minSuccessPercentage: 80,
-        timeout: Duration.minutes(5),
+        timeout: Duration.minutes(30),
       }),
     },
   );
@@ -116,11 +113,14 @@ export default function computeStack(
     },
   });
 
-  const httpsListener = applicationLoadBalancer.addListener(`${name}HTTPSListener`, {
-    port: 443,
-    certificates: [certificate], // Your SSL certificate from ACM
-    open: true,
-  });
+  const httpsListener = applicationLoadBalancer.addListener(
+    `${name}HTTPSListener`,
+    {
+      port: 443,
+      certificates: [certificate], // Your SSL certificate from ACM
+      open: true,
+    },
+  );
 
   httpsListener.addTargetGroups(`${name}TargetGroup`, {
     targetGroups: [targetGroup],
