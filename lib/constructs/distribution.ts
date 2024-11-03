@@ -36,6 +36,14 @@ export default function distributionConstruct(scope: Construct, name: string) {
       ),
       recordName: domain, // root domain
     });
+
+    new ARecord(scope, `${name}DevARecord`, {
+      zone: hostedZone,
+      target: RecordTarget.fromAlias(
+        new LoadBalancerTarget(applicationLoadBalancer),
+      ),
+      recordName: `dev.${domain}`, // dev subdomain
+    });
   };
 
   return { domain, hostedZone, certificate, setARecords };
