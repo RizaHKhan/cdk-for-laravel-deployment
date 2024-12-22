@@ -2,7 +2,7 @@
 import "source-map-support/register";
 import { App } from "aws-cdk-lib";
 import { env } from "process";
-import { AppCdkStack } from "../lib/detailing-cdk-stack";
+import { AppCdkStack } from "../lib/app-cdk-stack";
 
 const { CDK_DEFAULT_ACCOUNT } = env;
 
