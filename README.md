@@ -106,7 +106,7 @@ Our application will live within an EC2 instance. However, we want this infrastr
 
 Here are the properties we need to fill out for our autoscaling group, and we'll go in to details as we go along.
 
-| Property         | Comment                                                                                                              |
+| Property         | Description                                                                                                          |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `vpc`            | We've already created thie above                                                                                     |
 | `launchTemplate` | Specify what type of instance will be created. The type, the OS (Linux most likely) distribution                     |
@@ -114,10 +114,11 @@ Here are the properties we need to fill out for our autoscaling group, and we'll
 | `init`           | We will use `CloudformationInit` here to setup the EC2 with the appropriate packges and services for Laravel to work |
 | `signals`        | When using `CloudformationInit` we need to add this property                                                         |
 
-We have a specific launct template 
+We have a specific launch template
+
 ```typescript
 {
-  launchTemplate: new LaunchTemplate(scope, 'LaunchTemplateName', {
+  launchTemplate: new LaunchTemplate(scope, "LaunchTemplateName", {
     instanceType: new InstanceType("t2.micro"),
     machineImage: new AmazonLinuxImage({
       generation: AmazonLinuxGeneration.AMAZON_LINUX_2023,
@@ -129,12 +130,130 @@ We have a specific launct template
         ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
       ],
     }),
-    keyPair: new KeyPair(scope, 'KeyPair', {
-      keyPairName: 'KeyPair',
+    keyPair: new KeyPair(scope, "KeyPairName", {
+      keyPairName: "KeyPair",
     }),
   });
 }
 ```
+
+#### Cfninit
+
+```typescript
+init: CloudFormationInit.fromElements(
+  InitPackage.yum("nginx"),
+  InitCommand.shellCommand(
+    "sudo yum install php php-fpm php-xml php-mbstring php-zip php-bcmath php-tokenizer ruby wget sqlite httpd-tools -y",
+  ),
+  InitFile.fromAsset("/etc/nginx/.htpasswd", "cfninit/.htpasswd"),
+  InitFile.fromAsset(
+    "/etc/nginx/conf.d/site.conf", // Destination on the EC2 instance
+    "cfninit/site.conf", // Where the file is located
+  ),
+  InitService.enable("nginx", {
+    serviceRestartHandle: new InitServiceRestartHandle(),
+  }),
+),
+signals: Signals.waitForCount(1, {
+  minSuccessPercentage: 80,
+  timeout: Duration.minutes(30),
+}),
+```
+
+In the CloudformationInit block, we are creating the specific environment needed to run our Laravel application. This involces the Nginx web server along with a number of PHP libraries.
+
+You will need to be careful here, there are some packages that are common and available via the `InitPackage.yum('nginx')` method, but others will need to be added via `InitCommand.shellCommand('...packages go here')`. You will need to experiment to make sure you build the environment appropriately.
+
+We can also create configuration files and copy them directly to the appropriate location when we deploy.
+
+If the build fails due to a signal error, it means something in that chain failed (ie, a package didn't install) so checking that process would be a first good step.
+
+Compute would also include services like load balancers (to send requests to the appropriate EC2 instance), target group and HTTPS listeners.
+
+### CI/CD Automation
+
+The glue for this infrastructure will be the Codepipeline that will take the application code from Github(or similar) and builds it to the EC2 via a pipeline.
+
+The PHP side is simple, where we just want to run `composer install` for the packages. For the Javascript portion, we need to minify the files so they are small as possible because they will be sent to the client for processing.
+
+Lets strip down the Pipeline L2 Construct to see what we need to build the pipeline
+
+```typescript
+new Pipeline(scope, name, {
+  pipelineName: "PipelineName",
+  role: new Role(scope, "PipelineRoleName", {}),
+  artifactBucket,
+  stages: [
+    {
+      stageName: "Source",
+      actions: [],
+    },
+    {
+      stageName: "Build",
+      actions: [],
+    },
+    {
+      stageName: "Deploy",
+      actions: [],
+    },
+  ],
+});
+```
+
+So a Role that gives permission to perform the necessary actions. A S3 bucket that will store the initial version. And finally stages, which is are sequential actions to perform on the code.
+
+First we will source the code (pull it from the repository).
+Second we will build the code (ie, `composer install`, `npm install`).
+Finally, we will deploy the code to the autoscaling group we created earlier.
+
+This is not an exhaustive list of stages though. We could add more stages (ie, Testing) as needed.
+
+There is also a hidden piece here.
+
+The repository also needs a `appspec.yml` file that will hold additional configuration:
+
+```yml
+version: 0.0
+os: linux
+
+files:
+  - source: /
+    destination: /var/www/mydomain.ca
+    file_exists_behavior: OVERWRITE
+hooks:
+  AfterInstall:
+    - location: scripts/after-install.sh
+      timeout: 300
+      runas: root
+```
+
+Here we take the source (content inside `buildArtifact` from the Deploy stage), and copy it to `/var/wwww/mydomain.ca`.
+
+The `after-install.sh` could contain the following:
+```bash
+#!/bin/bash
+
+if [[ ! -f /var/www/mydomain.ca/.env ]]; then
+    cp /var/www/mydomain.com/.env.example /var/www/mydomain.com/.env
+
+    cd /var/www/mydomain.com
+    php artisan key:generate
+fi
+
+cd /var/www/mydomain.com
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+cd /var/www
+sudo chmod -R 777 /var/www
+sudo chown -R nginx:nginx /var/www
+
+sudo systemctl restart nginx
+sudo systemctl enable nginx
+```
+
+Once the code has been copied, we will need to perform some actions (ie, clear cache, restart nginx).
 
 ## Things I didn't do
 
