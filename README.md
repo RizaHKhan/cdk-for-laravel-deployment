@@ -208,9 +208,7 @@ Finally, we will deploy the code to the autoscaling group we created earlier.
 
 This is not an exhaustive list of stages though. We could add more stages (ie, Testing) as needed.
 
-There is also a hidden piece here.
-
-The repository also needs a `appspec.yml` file that will hold additional configuration (found by Codepipeline at the base of the codebase):
+There is also a hidden piece here: The application repository needs a [`appspec.yml`](https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file.html) file that will hold additional configuration (found by Codepipeline at the base of the codebase):
 
 ```yml
 version: 0.0
