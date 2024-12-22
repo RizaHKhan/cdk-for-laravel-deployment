@@ -77,8 +77,8 @@ export default function computeStack(
         ),
         InitFile.fromAsset("/etc/nginx/.htpasswd", "cfninit/.htpasswd"),
         InitFile.fromAsset(
-          "/etc/nginx/conf.d/barrhavendetailing.conf", // Destination
-          "cfninit/barrhavendetailing.conf", // Where the file is located
+          "/etc/nginx/conf.d/site.conf", // Destination
+          "cfninit/site.conf", // Where the file is located
         ),
         InitService.enable("nginx", {
           serviceRestartHandle: new InitServiceRestartHandle(),

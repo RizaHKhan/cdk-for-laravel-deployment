@@ -6,10 +6,10 @@ import networkingConstruct from "./constructs/networking";
 import computeStack from "./constructs/compute";
 import storageConstruct from "./constructs/storage";
 
-export class DetailingCdkStack extends Stack {
+export class AppCdkStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
-    const name = "BarrhavenDetailing";
+    const name = "AppName";
 
     const { vpc, securityGroup } = networkingConstruct(this, name);
     const { certificate, setARecords } = distributionConstruct(this, name);
