@@ -59,7 +59,7 @@ export default function codepipelineConstruct(
           new GitHubSourceAction({
             actionName: "Source",
             owner: "RizaHKhan",
-            repo: "detailing",
+            repo: "myRepoName",
             branch,
             oauthToken: SecretValue.secretsManager("barrhaven-detailing"),
             output: sourceArtifact,
