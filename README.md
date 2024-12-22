@@ -4,7 +4,7 @@ Distributing a Laravel application to AWS can be complicated. It requires knowle
 
 I hope this guide will help you setup your own app on the AWS cloud.
 
-## AWS CDK
+## [AWS CDK](https://aws.amazon.com/cdk/)
 
 This will be built using AWS's CDK. This is a AWS specific tool that allows developers to create infrastructure as code using a declaratice programming language. We choose to use Typescript as our language of choice.
 
@@ -12,11 +12,11 @@ After having written Cloudformation Templates, building AWS within the CDK is a 
 
 ## Overview
 
-We will keep things fairly simple for this example. We will be deploying this application to a EC2 instance which is created from an Autoscaling group template.
+We will keep things fairly simple for this example. We will be deploying this application to a [EC2](https://aws.amazon.com/ec2/instance-types/) instance which is created from an [Autoscaling group template](https://docs.aws.amazon.com/autoscaling/ec2/userguide/create-asg-launch-template.html).
 
-The database will also live within the EC2 instance (Sqlite). The main reason for this is cost. RDS is much more expensive, justifiably so, as it does quite a bit of heavy lifting for the user, but if our app will start out small, we don't really need the extra functionality RDS provides.
+The database will also live within the EC2 instance (Sqlite). The main reason for this is cost simplicity of this example. It could very well have been an RDS instance or a database that lives right in the EC2 instance.
 
-Finally, we will hook up all of the loose ends with a Codepipeline which will take our applications code from Github and place it in the EC2 instance.
+Finally, we will hook up all of the loose ends with a [Codepipeline](https://aws.amazon.com/codepipeline/) which will take our applications code from Github and place it in the EC2 instance.
 
 ### [Networking](lib/constructs/networking.ts)
 
@@ -64,13 +64,13 @@ securityGroup.addIngressRule(
 );
 ```
 
-Here we have created a security group that allows for outbound requests. We hvae also opened up some ports for communication. 443 for HTTPS communication, 80 for HTTP communication. And on occasion port 22 for SSH access.
+Here we have created a security group that allows for outbound requests. We have also opened up some ports for communication. 443 for HTTPS communication, 80 for HTTP communication. And on occasion port 22 for SSH access.
 
 I don't suggest we SSH into the EC2 instance and start making critical modifications (that is what the CDK is for), but it is good to go in and poke around and see if configurations are accurate. It will also help for debugging. For example, why isn't this particular package being installed? When trying it directly in the EC2 instance, it displays the appropriate error which can be used to configure the CDK code.
 
-### Distribution
+### [Distribution](lib/constructs/distribution.ts)
 
-Create a Hosted Zone that takes in the purchased domain.
+Create a [Hosted Zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/hosted-zones-working-with.html) that takes in the purchased domain.
 
 ```typescript
 const hostedZone = new HostedZone(scope, "HostedZoneName", {
@@ -78,7 +78,7 @@ const hostedZone = new HostedZone(scope, "HostedZoneName", {
 });
 ```
 
-Create a certificate for the domain
+Create a [SSL Certificate](https://aws.amazon.com/what-is/ssl-certificate/) for the domain
 
 ```typescript
 const certificate = new Certificate(scope, "CertificateName", {
@@ -88,7 +88,7 @@ const certificate = new Certificate(scope, "CertificateName", {
 });
 ```
 
-We will also need to create an ARecord for the domains we need. For the base `mydomain.com`, `www.mydomain.com` and `dev.mydomain.com` as examples. Note, this will require an Application Load Balancer for the target value.
+We will also need to create an [ARecord](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_route53.ARecord.html) for the domains we need. For the base `mydomain.com`, `www.mydomain.com` and `dev.mydomain.com` as examples. Note, this will require an [Application Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html) for the target value.
 
 ```typescript
 new ARecord(scope, "RootARecord", {
@@ -100,11 +100,11 @@ new ARecord(scope, "RootARecord", {
 });
 ```
 
-### Compute
+### [Compute](lib/constructs/compute.ts)
 
 Our application will live within an EC2 instance. However, we want this infrastructure to be elastic and flexible.
 
-Here are the properties we need to fill out for our autoscaling group, and we'll go in to details as we go along.
+Here are the properties we need to fill out for our Autoscaling group, and we'll go in to details as we go along.
 
 | Property         | Description                                                                                                          |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -160,7 +160,7 @@ signals: Signals.waitForCount(1, {
 }),
 ```
 
-In the CloudformationInit block, we are creating the specific environment needed to run our Laravel application. This involves the Nginx web server along with a number of PHP libraries.
+In the [CloudformationInit](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_ec2.CloudFormationInit.html) block, we are creating the specific environment needed to run our Laravel application. This involves the Nginx web server along with a number of PHP libraries.
 
 You will need to be careful here, there are some packages that are common and available via the `InitPackage.yum('nginx')` method, but others will need to be added via `InitCommand.shellCommand('...packages go here')`. You will need to experiment to make sure you build the environment appropriately.
 
@@ -168,9 +168,9 @@ We can also create configuration files and copy them directly to the appropriate
 
 If the build fails due to a signal error, it means something in that chain failed (ie, a package didn't install) so checking that process would be a first good step.
 
-Compute would also include services like load balancers (to send requests to the appropriate EC2 instance), target group and HTTPS listeners.
+Compute would also include services like load balancers (to send requests to the appropriate EC2 instance), [target group](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_elasticloadbalancingv2.ApplicationTargetGroup.html) and HTTPS listeners.
 
-### CI/CD Automation
+### [CI/CD Automation](lib/constructs/pipeline.ts)
 
 The glue for this infrastructure will be the Codepipeline that will take the application code from Github(or similar) and builds it to the EC2 via a pipeline.
 
@@ -200,7 +200,7 @@ new Pipeline(scope, name, {
 });
 ```
 
-So a Role that gives permission to perform the necessary actions. A S3 bucket that will store the initial version. And finally stages, which is are sequential actions to perform on the code.
+So a Role that gives permission to perform the necessary actions. A [S3](https://aws.amazon.com/s3/) bucket that will store the initial version. And finally stages, which is are sequential actions to perform on the code.
 
 First we will source the code (pull it from the repository).
 Second we will build the code (ie, `composer install`, `npm install`).
@@ -210,7 +210,7 @@ This is not an exhaustive list of stages though. We could add more stages (ie, T
 
 There is also a hidden piece here.
 
-The repository also needs a `appspec.yml` file that will hold additional configuration:
+The repository also needs a `appspec.yml` file that will hold additional configuration (found by Codepipeline at the base of the codebase):
 
 ```yml
 version: 0.0
