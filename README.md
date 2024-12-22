@@ -251,7 +251,12 @@ sudo systemctl restart nginx
 sudo systemctl enable nginx
 ```
 
-Once the code has been copied, we will need to perform some actions (ie, clear cache, restart Nginx).
+#### [Secrets Manager](https://aws.amazon.com/secrets-manager/)
+
+In order to access Github, Codepipeline will require an `oauthToken`. We can add that in and `.env` file or use Secrets Manager.
+```typescript
+oauthToken: SecretValue.secretsManager("my-secret"),
+```
 
 ## Things I didn't do
 
