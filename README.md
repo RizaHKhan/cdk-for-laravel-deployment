@@ -38,7 +38,7 @@ const vpc = new Vpc(scope, "VPC", {
 });
 ```
 
-Here we are creating an EC2 that contains one public subnet. We are also allowing this VPC to span two availability zones. Later you will see that the Autoscaling group will use this number to determine how many instances it needs to create.
+Here we are creating an EC2 that contains one public subnet. We are also allowing this VPC to span two availability zones. Later you will see that the autoscaling group will use this number to determine how many instances it needs to create.
 
 #### Security Group
 
@@ -104,7 +104,7 @@ new ARecord(scope, "RootARecord", {
 
 Our application will live within an EC2 instance. However, we want this infrastructure to be elastic and flexible.
 
-Here are the properties we need to fill out for our Autoscaling group, and we'll go in to details as we go along.
+Here are the properties we need to fill out for our autoscaling group, and we'll go in to details as we go along.
 
 | Property         | Description                                                                                                          |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -251,7 +251,7 @@ sudo systemctl restart nginx
 sudo systemctl enable nginx
 ```
 
-Once the code has been copied, we will need to perform some actions (ie, clear cache, restart nginx).
+Once the code has been copied, we will need to perform some actions (ie, clear cache, restart Nginx).
 
 ## Things I didn't do
 
@@ -260,5 +260,5 @@ Once the code has been copied, we will need to perform some actions (ie, clear c
 
 ## Ideas for other articles
 
-1. Create a manageed database within EC2 using the CDK (RDS alternative).
+1. Create a managed database within EC2 using the CDK (RDS alternative).
    - Should perform regular backups etc.
