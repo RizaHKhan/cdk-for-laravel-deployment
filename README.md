@@ -4,9 +4,9 @@ Distributing a Laravel application to AWS can be complicated. It requires knowle
 
 I hope this guide will help you setup your own app on the AWS cloud.
 
-## Environment
+## AWS CDK
 
-This will be built using AWS's CDK using Typescript. This is a AWS specific tool that allows developers to create infrastructure as code using a declaratice programming language.
+This will be built using AWS's CDK. This is a AWS specific tool that allows developers to create infrastructure as code using a declaratice programming language. We choose to use Typescript as our language of choice.
 
 After having written Cloudformation Templates, building AWS within the CDK is a breath of fresh air.
 
@@ -18,7 +18,7 @@ The database will also live within the EC2 instance (Sqlite). The main reason fo
 
 Finally, we will hook up all of the loose ends with a Codepipeline which will take our applications code from Github and place it in the EC2 instance.
 
-### Networking
+### [Networking](lib/constructs/networking.ts)
 
 #### VPC
 
@@ -160,7 +160,7 @@ signals: Signals.waitForCount(1, {
 }),
 ```
 
-In the CloudformationInit block, we are creating the specific environment needed to run our Laravel application. This involces the Nginx web server along with a number of PHP libraries.
+In the CloudformationInit block, we are creating the specific environment needed to run our Laravel application. This involves the Nginx web server along with a number of PHP libraries.
 
 You will need to be careful here, there are some packages that are common and available via the `InitPackage.yum('nginx')` method, but others will need to be added via `InitCommand.shellCommand('...packages go here')`. You will need to experiment to make sure you build the environment appropriately.
 
